@@ -4,7 +4,19 @@ import { defineStore } from 'pinia';
 export const useUserStore = defineStore('user', {
     state:()=>({
         token: localStorage.getItem('UserToken') as string || '',
-        userInfo: null as any | null,
+        userInfo: (() => {
+            try {
+                const userInfoStr = localStorage.getItem('UserInfo');
+                if (!userInfoStr || userInfoStr === 'null' || userInfoStr === 'undefined') {
+                    return null;
+                }
+                return JSON.parse(userInfoStr);
+            } catch (error) {
+                console.error('解析用户信息失败:', error);
+                localStorage.removeItem('UserInfo'); // 清除无效数据
+                return null;
+            }
+        })() as any | null,
     }),
     getters: {
         isLoggedIn: (state) => !!state.token,
@@ -16,11 +28,13 @@ export const useUserStore = defineStore('user', {
         },
         setUserInfo(info: any) {
             this.userInfo = info
+            localStorage.setItem('UserInfo', JSON.stringify(info))
         },
         logout() {
             this.token = ''
             this.userInfo = null
             localStorage.removeItem('UserToken')
+            localStorage.removeItem('UserInfo')
         }
     }
 });

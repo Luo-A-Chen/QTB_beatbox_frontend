@@ -29,7 +29,6 @@ const handleLogin = async () => {
       if(result){
         userStore.setToken(result.data.token);
         userStore.userInfo = result.data;
-        message.success('登录成功');
         setTimeout(()=>{
           router.push('/')
         },1000)

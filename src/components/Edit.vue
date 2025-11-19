@@ -1,21 +1,16 @@
 <template>
   <div class="edit-profile-container">
-    <a-page-header title="编辑个人信息" @back="goBack" style="margin-bottom: 20px;"/>
-    
     <a-spin :spinning="loading">
-      <a-card title="基本信息" style="max-width: 600px; margin: 0 auto;">
+      <a-card style="max-width: 600px; margin: 0 auto;">
+        <template #title>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <a-button type="text" @click="goBack" style="padding: 0; height: auto;">
+              <arrow-left-outlined />
+            </a-button>
+            <span>基本信息</span>
+          </div>
+        </template>
         <a-form :model="user" layout="vertical">
-          
-          <!-- 账号信息（只读） -->
-          <a-form-item label="账号">
-            <a-input
-                v-model:value="user.account"
-                placeholder="账号"
-                disabled
-            />
-            <div class="form-tip">账号信息不可修改</div>
-          </a-form-item>
-          
           <!-- 头像上传 -->
           <a-form-item label="头像">
             <div style="display:flex; align-items: center; gap:16px;">
@@ -107,7 +102,7 @@ import {message} from "ant-design-vue";
 import {reactive,onMounted,ref} from "vue";
 import router from '../router';
 import {api} from "../auth.ts";
-import { UploadOutlined } from '@ant-design/icons-vue';
+import { UploadOutlined, ArrowLeftOutlined } from '@ant-design/icons-vue';
 
 const userStore = useUserStore();
 const loading = ref(false);
@@ -127,21 +122,39 @@ onMounted(async ()=>{
   try {
     loading.value = true;
     
-    // 优先从store获取用户信息
+    // 优先从store获取用户信息（刷新后从localStorage恢复）
     if (userStore.userInfo) {
       Object.assign(user, userStore.userInfo);
     }
     
-    // 再从后端获取最新信息
-    const response = await api.get('/user/getUser');
-    Object.assign(user, response.data);
+    // 如果store中没有用户信息，检查是否登录
+    if (!userStore.isLoggedIn) {
+      message.error('请先登录');
+      router.push('/login');
+      return;
+    }
     
-    // 更新store中的用户信息
-    userStore.setUserInfo(response.data);
+    // 从后端获取最新信息
+    const response = await api.get('/user/getUser');
+    if (response.data) {
+      Object.assign(user, response.data);
+      // 更新store中的用户信息（同时保存到localStorage）
+      userStore.setUserInfo(response.data);
+    }
     
   } catch (err: any) {
     console.error('加载用户信息失败:', err);
-    message.error('加载用户信息失败');
+    
+    // 如果后端请求失败，但store中有数据，继续显示
+    if (userStore.userInfo && userStore.userInfo !== null && typeof userStore.userInfo === 'object') {
+      Object.assign(user, userStore.userInfo);
+      message.warning('使用本地缓存数据，部分信息可能不是最新的');
+    } else {
+      message.error('加载用户信息失败');
+      if (err.response?.status === 401) {
+        router.push('/login');
+      }
+    }
   } finally {
     loading.value = false;
   }
