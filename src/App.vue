@@ -39,15 +39,77 @@
 
 <script lang="ts" setup>
 // 全局样式和配置
-import { onMounted } from 'vue';
+import { onMounted, onBeforeMount } from 'vue';
 import { useUserStore } from "./store.ts";
+import { useRouter } from 'vue-router';
+import { message } from 'ant-design-vue';
 
 const userStore = useUserStore();
+const router = useRouter();
+
+// 应用启动前的token校验
+onBeforeMount(async () => {
+  await validateTokenOnStartup();
+});
 
 // 页面加载时的初始化
 onMounted(() => {
   console.log('App mounted, user login status:', userStore.isLoggedIn);
 });
+
+// 启动时token验证函数
+const validateTokenOnStartup = async () => {
+  if (!userStore.isLoggedIn) {
+    console.log('用户未登录，无需验证token');
+    return;
+  }
+
+  console.log('启动时验证token...');
+  
+  try {
+    // 这里可以调用后端验证接口，暂时使用简单的延迟验证
+    // 在实际项目中，可以调用 /auth/validate 等接口
+    const isValid = await checkTokenValidity();
+    
+    if (!isValid) {
+      console.warn('启动时发现token无效，清除本地状态');
+      userStore.logout();
+      
+      // 显示提示信息
+      message.warning('登录状态已过期，请重新登录');
+      
+      // 如果当前不在登录页，重定向到登录页
+      if (router.currentRoute.value.path !== '/login') {
+        router.push('/login');
+      }
+    } else {
+      console.log('token验证通过');
+    }
+  } catch (error) {
+    console.error('启动时token验证失败:', error);
+    // 验证失败时保守处理：清除token
+    userStore.logout();
+    if (router.currentRoute.value.path !== '/login') {
+      router.push('/login');
+    }
+  }
+};
+
+// 检查token有效性的函数
+const checkTokenValidity = async (): Promise<boolean> => {
+  // 简单的token格式检查
+  const token = userStore.token;
+  if (!token || token.length < 10) {
+    return false;
+  }
+  
+  // 这里可以添加更复杂的验证逻辑
+  // 例如检查token是否过期（如果token包含过期时间）
+  // 或者调用后端验证接口
+  
+  // 暂时返回true，由后端接口返回错误时再处理
+  return true;
+};
 </script>
 
 <style scoped>
@@ -250,4 +312,4 @@ img {
 .ant-link:hover {
   color: #40a9ff;
 }
-</style>
+</style>

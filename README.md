@@ -1,5 +1,11 @@
-# Vue 3 + TypeScript + Vite
+#与后端交互的接口
+接口文档：
+登录注册
+编辑个人信息
+上传图片
+上传视频
+首页推荐算法
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+来个并发的功能实现
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+

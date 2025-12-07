@@ -2,19 +2,29 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '../store';
+import { api } from '../auth';
 import { 
   PlayCircleOutlined, 
-  HeartOutlined, 
-  StarOutlined,
   FireOutlined,
   ClockCircleOutlined,
-  SearchOutlined,
   UserOutlined,
-  LogoutOutlined
+  LogoutOutlined,
+  UploadOutlined
 } from '@ant-design/icons-vue';
-
 const router = useRouter();
 const userStore = useUserStore();
+
+// 定义后端返回的视频数据类型
+interface VideoResponse {
+  id: number; // 视频主键
+  title: string; // 视频标题
+  description: string; // 视频描述
+  cover: string; // 视频封面
+  videoUrl: string; // 视频地址
+  duration: number; // 视频时长（秒）
+  status: number; // 视频状态 0-处理中 1-正常 2-删除 3-处理失败
+  type: number; // 视频类型 0-普通视频 1-广告视频
+}
 
 // 用户状态相关
 const isLoggedIn = computed(() => userStore.isLoggedIn);
@@ -33,83 +43,56 @@ const handleLogout = () => {
   }, 0);
 };
 
-// 模拟视频数据
-const videoList = ref([
-  {
-    id: 1,
-    title: '世界顶级Beatbox表演 - Codfish',
-    thumbnail: 'https://via.placeholder.com/320x180/1890ff/ffffff?text=Codfish',
-    videoUrl: 'https://www.youtube.com/embed/example1',
-    duration: '3:45',
-    views: '1.2M',
-    likes: '45K',
-    uploader: 'Beatbox World',
-    category: '表演',
-    difficulty: '高级'
-  },
-  {
-    id: 2,
-    title: '初学者Beatbox基础教学',
-    thumbnail: 'https://via.placeholder.com/320x180/52c41a/ffffff?text=基础教学',
-    videoUrl: 'https://www.youtube.com/embed/example2',
-    duration: '8:20',
-    views: '890K',
-    likes: '32K',
-    uploader: 'Beatbox学院',
-    category: '教学',
-    difficulty: '初级'
-  },
-  {
-    id: 3,
-    title: 'Dubstep Beatbox挑战',
-    thumbnail: 'https://via.placeholder.com/320x180/fa541c/ffffff?text=Dubstep',
-    videoUrl: 'https://www.youtube.com/embed/example3',
-    duration: '2:30',
-    views: '2.1M',
-    likes: '78K',
-    uploader: '电子音乐Beatbox',
-    category: '挑战',
-    difficulty: '中级'
-  },
-  {
-    id: 4,
-    title: 'Beatbox世界冠军合集',
-    thumbnail: 'https://via.placeholder.com/320x180/722ed1/ffffff?text=世界冠军',
-    videoUrl: 'https://www.youtube.com/embed/example4',
-    duration: '15:40',
-    views: '3.5M',
-    likes: '120K',
-    uploader: 'Beatbox官方',
-    category: '合集',
-    difficulty: '高级'
-  },
-  {
-    id: 5,
-    title: '日常Beatbox练习技巧',
-    thumbnail: 'https://via.placeholder.com/320x180/13c2c2/ffffff?text=练习技巧',
-    videoUrl: 'https://www.youtube.com/embed/example5',
-    duration: '6:15',
-    views: '560K',
-    likes: '28K',
-    uploader: '练习达人',
-    category: '技巧',
-    difficulty: '初级'
-  },
-  {
-    id: 6,
-    title: '创新Beatbox音效展示',
-    thumbnail: 'https://via.placeholder.com/320x180/eb2f96/ffffff?text=创新音效',
-    videoUrl: 'https://www.youtube.com/embed/example6',
-    duration: '4:50',
-    views: '1.8M',
-    likes: '65K',
-    uploader: '音效大师',
-    category: '创新',
-    difficulty: '高级'
-  }
-]);
+// 视频数据 - 初始为空数组，等待后端加载
+const videoList = ref<VideoResponse[]>([]);
+const loading = ref(false);
 
-const featuredVideos = ref(videoList.value.slice(0, 3));
+// 获取首页推荐视频列表
+const fetchRecommendVideos = async () => {
+  loading.value = true;
+  try {
+    console.log('开始请求推荐视频接口...');
+    const response = await api.get('/home/recommend');
+    console.log('接口响应:', response);
+    
+    // 检查后端返回的code是否为200
+    if (response && response.data.code === 200) {
+      videoList.value = response.data || [];
+      console.log('成功获取推荐视频:', videoList.value.length, '个');
+    } else {
+      console.error('获取推荐视频失败:', response.data?.message || '未知错误');
+    }
+  } catch (error: any) {
+    console.error('请求推荐视频接口失败:', error);
+    console.error('错误详情:', error.response?.data?.message || error.message || '未知错误');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 将后端duration（秒）转换为前端显示的格式（分:秒）
+const formatDuration = (seconds: number): string => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+// 为后端数据添加前端需要的字段
+const processedVideoList = computed(() => {
+  return videoList.value.map(video => ({
+    ...video,
+    // 添加前端需要的字段
+    thumbnail: video.cover, // 后端cover对应前端thumbnail
+    durationDisplay: formatDuration(video.duration), // 格式化时长显示
+    views: '0', // 后端没有提供，暂时设为0
+    likes: '0', // 后端没有提供，暂时设为0
+    uploader: '未知上传者', // 后端没有提供
+    category: '表演', // 后端没有提供，暂时设为默认值
+    difficulty: '中级' // 后端没有提供，暂时设为默认值
+  }));
+});
+
+const featuredVideos = ref(processedVideoList.value.slice(0, 3));
 const categories = ref([
   { label: '全部', value: 'all' },
   { label: '教学', value: '教学' },
@@ -123,10 +106,10 @@ const selectedCategory = ref('all');
 const searchText = ref('');
 
 // 过滤视频
-const filteredVideos = ref([...videoList.value]);
+const filteredVideos = ref([...processedVideoList.value]);
 
 const filterVideos = () => {
-  let filtered = [...videoList.value];
+  let filtered = [...processedVideoList.value];
   
   if (selectedCategory.value !== 'all') {
     filtered = filtered.filter(video => video.category === selectedCategory.value);
@@ -152,8 +135,14 @@ const likeVideo = (video: any) => {
   console.log('点赞视频:', video.title);
 };
 
+const handleUploadVideo = () => {
+  router.push('/video');
+};
+
 onMounted(() => {
   console.log('首页加载完成');
+  // 加载后端数据
+  fetchRecommendVideos();
 });
 </script>
 
@@ -173,11 +162,7 @@ onMounted(() => {
             placeholder="搜索Beatbox视频..."
             @search="filterVideos"
             class="search-input"
-          >
-            <template #prefix>
-              <SearchOutlined />
-            </template>
-          </a-input-search>
+          />
         </div>
         
         <div class="user-actions">
@@ -195,6 +180,10 @@ onMounted(() => {
                 <a-menu>
                   <a-menu-item @click="handleEditProfile">
                     <UserOutlined /> 编辑个人信息
+                  </a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item @click="handleUploadVideo">
+                    <UploadOutlined /> 上传视频
                   </a-menu-item>
                   <a-menu-divider />
                   <a-menu-item @click="handleLogout">
@@ -218,50 +207,9 @@ onMounted(() => {
 
     <!-- 主要内容区域 -->
     <a-layout-content class="content">
-      <!-- 轮播图/特色视频 -->
-      <div class="featured-section">
-        <a-card class="featured-card" :bordered="false">
-          <template #title>
-            <div class="section-title">
-              <FireOutlined class="title-icon" />
-              <span>热门推荐</span>
-            </div>
-          </template>
-          
-          <a-row :gutter="[16, 16]">
-            <a-col :span="8" v-for="video in featuredVideos" :key="video.id">
-              <a-card 
-                hoverable 
-                class="video-card"
-                @click="playVideo(video)"
-              >
-                <template #cover>
-                  <img alt="thumbnail" :src="video.thumbnail" />
-                </template>
-                <template #actions>
-                  <HeartOutlined key="like" @click.stop="likeVideo(video)" />
-                  <StarOutlined key="favorite" />
-                </template>
-                
-                <a-card-meta :title="video.title">
-                  <template #description>
-                    <div class="video-meta">
-                      <span>{{ video.uploader }}</span>
-                      <span class="views">{{ video.views }} 观看</span>
-                    </div>
-                  </template>
-                </a-card-meta>
-                
-                <div class="video-duration" v-if="video.duration">{{ video.duration }}</div>
-              </a-card>
-            </a-col>
-          </a-row>
-        </a-card>
-      </div>
-
       <!-- 分类导航 -->
       <div class="category-section">
-        <a-card :bordered="false">
+        <a-card :bordered="false" class="category-card">
           <div class="category-tabs">
             <a-radio-group v-model:value="selectedCategory" @change="filterVideos" button-style="solid">
               <a-radio-button v-for="category in categories" :key="category.value" :value="category.value">
@@ -272,79 +220,98 @@ onMounted(() => {
         </a-card>
       </div>
 
-      <!-- 视频列表 -->
-      <div class="video-list-section">
-        <a-card :bordered="false">
-          <template #title>
-            <div class="section-title">
-              <ClockCircleOutlined class="title-icon" />
-              <span>最新视频</span>
-            </div>
-          </template>
-          
-          <a-row :gutter="[16, 16]">
-            <a-col 
-              :xl="6" 
-              :lg="8" 
-              :md="12" 
-              :sm="12" 
-              :xs="24" 
-              v-for="video in filteredVideos" 
-              :key="video.id"
-            >
-              <a-card 
-                hoverable 
-                class="video-card"
-                @click="playVideo(video)"
-              >
-                <template #cover>
-                  <img alt="thumbnail" :src="video.thumbnail" />
-                </template>
-                <template #actions>
-                  <HeartOutlined key="like" @click.stop="likeVideo(video)" />
-                  <StarOutlined key="favorite" />
-                </template>
-                
-                <a-card-meta :title="video.title">
-                  <template #description>
-                    <div class="video-meta">
-                      <span>{{ video.uploader }}</span>
+      <!-- 主要内容布局 -->
+      <div class="main-content">
+        <!-- 左侧：热门推荐轮播图 -->
+        <div class="left-section">
+          <a-card class="featured-card" :bordered="false">
+            <template #title>
+              <div class="section-title">
+                <FireOutlined class="title-icon" />
+                <span>热门推荐</span>
+              </div>
+            </template>
+            
+            <a-spin :spinning="loading">
+              <div v-if="featuredVideos.length > 0" class="carousel-container">
+                <a-carousel autoplay arrows dots-class="slick-dots slick-thumb">
+                  <div v-for="video in featuredVideos" :key="video.id" class="carousel-item">
+                    <div class="carousel-video" @click="playVideo(video)">
+                      <img :src="video.thumbnail" :alt="video.title" class="carousel-image" />
+                      <div class="carousel-overlay">
+                        <div class="video-info">
+                          <h3 class="video-title">{{ video.title }}</h3>
+                          <p class="video-meta">{{ video.uploader }} • {{ video.views }} 观看</p>
+                          <div class="video-tags">
+                            <a-tag color="blue">{{ video.category }}</a-tag>
+                            <a-tag :color="video.difficulty === '高级' ? 'red' : video.difficulty === '中级' ? 'orange' : 'green'">
+                              {{ video.difficulty }}
+                            </a-tag>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </a-carousel>
+              </div>
+              
+              <div v-else-if="!loading" class="empty-state">
+                <a-empty description="暂无推荐视频" />
+              </div>
+            </a-spin>
+          </a-card>
+        </div>
+
+        <!-- 右侧：最新视频列表 -->
+        <div class="right-section">
+          <a-card :bordered="false" class="latest-videos-card">
+            <template #title>
+              <div class="section-title">
+                <ClockCircleOutlined class="title-icon" />
+                <span>最新视频</span>
+                <span class="video-count">({{ filteredVideos.length }}个)</span>
+              </div>
+            </template>
+            
+            <a-spin :spinning="loading">
+              <div v-if="filteredVideos.length > 0" class="video-grid">
+                <div 
+                  v-for="video in filteredVideos" 
+                  :key="video.id"
+                  class="video-item"
+                  @click="playVideo(video)"
+                >
+                  <div class="video-thumbnail">
+                    <img :src="video.thumbnail" :alt="video.title" />
+                    <div class="video-duration">{{ video.durationDisplay }}</div>
+                  </div>
+                  <div class="video-content">
+                    <h4 class="video-title">{{ video.title }}</h4>
+                    <p class="video-uploader">{{ video.uploader }}</p>
+                    <div class="video-stats">
                       <span class="views">{{ video.views }} 观看</span>
+                      <div class="video-tags">
+                        <a-tag size="small" color="blue">{{ video.category }}</a-tag>
+                      </div>
                     </div>
-                    <div class="video-tags">
-                      <a-tag :color="video.difficulty === '高级' ? 'red' : video.difficulty === '中级' ? 'orange' : 'green'">
-                        {{ video.difficulty }}
-                      </a-tag>
-                      <a-tag color="blue">{{ video.category }}</a-tag>
-                    </div>
-                  </template>
-                </a-card-meta>
-                
-                <div class="video-duration" v-if="video.duration">{{ video.duration }}</div>
-              </a-card>
-            </a-col>
-          </a-row>
-          
-          <div v-if="filteredVideos.length === 0" class="empty-state">
-            <a-empty description="暂无相关视频" />
-          </div>
-        </a-card>
+                  </div>
+                </div>
+              </div>
+              
+              <div v-else-if="!loading" class="empty-state">
+                <a-empty description="暂无相关视频" />
+              </div>
+            </a-spin>
+          </a-card>
+        </div>
       </div>
     </a-layout-content>
-
-    <!-- 底部 -->
-    <!-- <a-layout-footer class="footer">
-      <div class="footer-content">
-        <p>© 2024 Beatbox视频站 - 分享最精彩的Beatbox表演</p>
-      </div>
-    </a-layout-footer> -->
   </a-layout>
 </template>
 
 <style scoped>
 .home-layout {
   min-height: 100vh;
-  /* 启用GPU加速 */
   transform: translateZ(0);
 }
 
@@ -354,7 +321,6 @@ onMounted(() => {
   position: sticky;
   top: 0;
   z-index: 1000;
-  /* 优化固定定位性能 */
   transform: translateZ(0);
 }
 
@@ -373,7 +339,6 @@ onMounted(() => {
   color: white;
   font-size: 20px;
   font-weight: bold;
-  /* 优化文本渲染 */
   transform: translateZ(0);
 }
 
@@ -384,6 +349,13 @@ onMounted(() => {
 
 .search-bar {
   flex: 0 0 400px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .search-input {
@@ -396,16 +368,48 @@ onMounted(() => {
 }
 
 .content {
-  padding: 24px;
+  padding: 0 24px 24px;
   max-width: 1200px;
   margin: 0 auto;
-  /* 优化滚动性能 */
   -webkit-overflow-scrolling: touch;
   transform: translateZ(0);
 }
 
-.featured-section {
-  margin-bottom: 24px;
+.category-section {
+  margin: 24px 0;
+}
+
+.category-card {
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.category-tabs {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+}
+
+.main-content {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 24px;
+  align-items: start;
+}
+
+.left-section {
+  min-height: 400px;
+}
+
+.right-section {
+  position: sticky;
+  top: 100px;
+  height: fit-content;
+}
+
+.featured-card, .latest-videos-card {
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .section-title {
@@ -413,6 +417,7 @@ onMounted(() => {
   align-items: center;
   font-size: 18px;
   font-weight: bold;
+  margin-bottom: 16px;
 }
 
 .title-icon {
@@ -420,48 +425,144 @@ onMounted(() => {
   color: #1890ff;
 }
 
-.video-card {
-  height: 100%;
-  /* 优化动画性能 */
-  transform: translateZ(0);
-  will-change: transform;
+.video-count {
+  margin-left: 8px;
+  font-size: 14px;
+  color: #666;
+  font-weight: normal;
 }
 
-.video-card:hover {
-  transform: translateY(-2px) translateZ(0);
+/* 轮播图样式 */
+.carousel-container {
+  height: 300px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.carousel-item {
+  height: 300px;
+}
+
+.carousel-video {
+  position: relative;
+  height: 100%;
+  cursor: pointer;
   transition: transform 0.3s ease;
 }
 
-.video-meta {
+.carousel-video:hover {
+  transform: scale(1.02);
+}
+
+.carousel-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.carousel-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  padding: 20px;
+  color: white;
+}
+
+.video-info h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.video-info .video-meta {
+  margin: 0 0 8px 0;
+  opacity: 0.9;
+}
+
+/* 最新视频列表样式 */
+.video-grid {
   display: flex;
-  justify-content: space-between;
-  margin-top: 8px;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.video-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid #f0f0f0;
+}
+
+.video-item:hover {
+  border-color: #1890ff;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.video-thumbnail {
+  position: relative;
+  flex-shrink: 0;
+  width: 120px;
+  height: 68px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.video-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .video-duration {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  bottom: 4px;
+  right: 4px;
   background: rgba(0, 0, 0, 0.7);
   color: white;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 10px;
+}
+
+.video-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.video-content h4 {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.video-uploader {
+  margin: 0 0 4px 0;
   font-size: 12px;
-  /* 优化定位性能 */
-  transform: translateZ(0);
+  color: #666;
 }
 
-.video-tags {
-  margin-top: 8px;
-}
-
-.category-section {
-  margin-bottom: 24px;
-}
-
-.category-tabs {
+.video-stats {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.views {
+  font-size: 12px;
+  color: #999;
 }
 
 .empty-state {
@@ -469,50 +570,7 @@ onMounted(() => {
   padding: 40px 0;
 }
 
-.footer {
-  text-align: center;
-  padding: 24px 0;
-  background: #f0f2f5;
-}
-
-.footer-content {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-/* 优化图片加载性能 */
-img {
-  max-width: 100%;
-  height: auto;
-  /* 启用GPU加速 */
-  transform: translateZ(0);
-}
-
-/* 优化滚动性能 */
-.scroll-optimized {
-  -webkit-overflow-scrolling: touch;
-  overflow-y: auto;
-  transform: translateZ(0);
-}
-
-/* 减少重绘和重排 */
-* {
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-}
-
-/* 优化网格布局性能 */
-.a-row {
-  /* 启用硬件加速 */
-  transform: translateZ(0);
-}
-
-.a-col {
-  /* 优化渲染性能 */
-  will-change: transform;
-}
-
-/* 响应式设计优化 */
+/* 响应式设计 */
 @media (max-width: 768px) {
   .header {
     padding: 0 16px;
@@ -527,11 +585,34 @@ img {
   }
   
   .content {
-    padding: 16px;
+    padding: 0 16px 16px;
   }
   
-  .section-title {
-    font-size: 16px;
+  .main-content {
+    grid-template-columns: 1fr;
+    gap: 16px;
   }
+  
+  .right-section {
+    position: static;
+  }
+  
+  .carousel-container {
+    height: 200px;
+  }
+  
+  .carousel-item {
+    height: 200px;
+  }
+  
+  .video-thumbnail {
+    width: 100px;
+    height: 56px;
+  }
+}
+
+* {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 </style>
