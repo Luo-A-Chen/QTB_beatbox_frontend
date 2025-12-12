@@ -27,8 +27,29 @@ export const useUserStore = defineStore('user', {
             localStorage.setItem('UserToken', token)
         },
         setUserInfo(info: any) {
-            this.userInfo = info
-            localStorage.setItem('UserInfo', JSON.stringify(info))
+            // 确保头像URL正确存储
+            if (info && typeof info === 'object') {
+                // 清理可能存在的无效头像URL
+                if (info.avatar === null || info.avatar === undefined || info.avatar === '') {
+                    delete info.avatar;
+                }
+                
+                // 确保所有必要字段都存在
+                const userInfo = {
+                    id: info.id || '',
+                    name: info.name || '',
+                    avatar: info.avatar || '',
+                    email: info.email || '',
+                    profile: info.profile || '',
+                    account: info.account || ''
+                };
+                
+                this.userInfo = userInfo;
+                localStorage.setItem('UserInfo', JSON.stringify(userInfo));
+            } else {
+                this.userInfo = null;
+                localStorage.setItem('UserInfo', JSON.stringify(null));
+            }
         },
         logout() {
             this.token = ''

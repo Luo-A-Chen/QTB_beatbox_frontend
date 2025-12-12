@@ -1,24 +1,42 @@
 <template>
-  <div class="video-upload-container">
-    <a-page-header
-      title="上传视频"
-      sub-title="分享您的Beatbox精彩表演"
-      @back="goBack"
-      class="page-header"
-    >
-      <template #extra>
-        <a-button type="primary" @click="handleSubmit" :loading="loading">
-          发布视频
-        </a-button>
-      </template>
-    </a-page-header>
+  <div class="modern-video-upload">
+    <!-- 顶部导航 -->
+    <header class="upload-header">
+      <div class="header-container">
+        <div class="header-left">
+          <a-button type="text" @click="goBack" class="back-btn">
+            <ArrowLeftOutlined />
+          </a-button>
+          <div class="header-title">
+            <h1>上传视频</h1>
+            <p>分享您的 Beatbox 精彩表演</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <a-button size="large" @click="goBack" class="cancel-btn">
+            取消
+          </a-button>
+          <a-button 
+            type="primary" 
+            size="large"
+            @click="handleSubmit" 
+            :loading="loading"
+            class="publish-btn"
+          >
+            {{ loading ? '发布中...' : '发布视频' }}
+          </a-button>
+        </div>
+      </div>
+    </header>
 
-    <div class="upload-content">
-      <a-card title="视频信息" class="upload-card">
-        <a-form :model="formState" :rules="rules" ref="formRef" layout="vertical">
-          
-          <!-- 视频文件上传 -->
-          <a-form-item label="视频文件" name="videoFile" required>
+    <!-- 主要内容 -->
+    <div class="upload-container">
+      <div class="upload-content">
+        <!-- 左侧上传区域 -->
+        <div class="upload-section">
+          <!-- 文件上传卡片 -->
+          <div class="upload-card">
+            <h2 class="card-title">选择视频文件</h2>
             <div class="upload-area">
               <a-upload
                 v-model:file-list="fileList"
@@ -27,86 +45,154 @@
                 :show-upload-list="false"
                 accept="video/*"
                 class="video-upload"
+                :disabled="uploading"
               >
-                <div class="upload-placeholder" :class="{ 'has-file': fileList.length > 0 }">
+                <div class="upload-zone" :class="{ 'has-file': fileList.length > 0, 'uploading': uploading }">
                   <template v-if="fileList.length === 0">
-                    <div class="upload-icon">
-                      <UploadOutlined style="font-size: 48px; color: #1890ff;" />
-                    </div>
-                    <div class="upload-text">
-                      <p>点击或拖拽视频文件到此区域上传</p>
-                      <p class="upload-hint">支持MP4、AVI、MOV等格式，最大500MB</p>
+                    <div class="upload-empty">
+                      <div class="upload-icon">
+                        <UploadOutlined />
+                      </div>
+                      <h3>点击或拖拽上传视频</h3>
+                      <p class="upload-hint">支持 MP4、AVI、MOV 等格式</p>
+                      <p class="upload-limit">文件大小不超过 500MB</p>
                     </div>
                   </template>
                   <template v-else>
-                    <div class="file-info">
+                    <div class="file-preview">
                       <div class="file-icon">
-                        <PlayCircleOutlined style="font-size: 48px; color: #52c41a;" />
+                        <PlayCircleOutlined />
                       </div>
-                      <div class="file-details">
-                        <p class="file-name">{{ fileList[0]?.name || '未知文件' }}</p>
+                      <div class="file-info">
+                        <h4 class="file-name">{{ fileList[0]?.name || '未知文件' }}</h4>
                         <p class="file-size">{{ formatFileSize(fileList[0]?.size || 0) }}</p>
-                        <p class="upload-status" :class="{ 'uploading': uploading }">
-                          {{ uploading ? '上传中...' : '已选择文件' }}
-                        </p>
+                        <div class="file-status" :class="{ 'uploading': uploading }">
+                          {{ uploading ? '上传中...' : '准备就绪' }}
+                        </div>
                       </div>
                     </div>
                   </template>
                 </div>
               </a-upload>
               
-              <!-- 上传进度条 -->
+              <!-- 上传进度 -->
               <div v-if="uploading" class="upload-progress">
+                <div class="progress-info">
+                  <span class="progress-label">上传进度</span>
+                  <span class="progress-percent">{{ uploadProgress }}%</span>
+                </div>
                 <a-progress 
                   :percent="uploadProgress" 
                   :show-info="false" 
-                  stroke-color="#1890ff" 
+                  stroke-color="#1890ff"
+                  :stroke-width="6"
                 />
-                <p class="progress-text">{{ uploadProgress }}%</p>
               </div>
             </div>
-          </a-form-item>
+          </div>
 
-          <!-- 视频标题 -->
-          <a-form-item label="视频标题" name="title" required>
-            <a-input
-              v-model:value="formState.title"
-              placeholder="请输入视频标题（2-50个字符）"
-              :maxlength="50"
-              show-count
-            />
-          </a-form-item>
+          <!-- 视频信息表单 -->
+          <div class="form-card">
+            <h2 class="card-title">视频信息</h2>
+            <a-form :model="formState" :rules="rules" ref="formRef" layout="vertical" class="video-form">
+              <!-- 视频标题 -->
+              <a-form-item label="视频标题" name="title" class="form-item">
+                <a-input
+                  v-model:value="formState.title"
+                  placeholder="为您的视频起一个吸引人的标题..."
+                  :maxlength="50"
+                  show-count
+                  size="large"
+                  class="modern-input"
+                />
+                <div class="field-tip">好的标题能帮助更多人发现您的作品</div>
+              </a-form-item>
 
-          <!-- 视频描述 -->
-          <a-form-item label="视频描述" name="description">
-            <a-textarea
-              v-model:value="formState.description"
-              placeholder="请输入视频描述（可选，最多200个字符）"
-              :rows="4"
-              :maxlength="200"
-              show-count
-            />
-          </a-form-item>
-
-        </a-form>
-      </a-card>
-
-      <!-- 预览区域 -->
-      <a-card title="视频预览" class="preview-card" v-if="fileList.length > 0">
-        <div class="preview-content">
-          <video 
-            v-if="videoPreviewUrl" 
-            :src="videoPreviewUrl" 
-            controls 
-            class="video-preview"
-          >
-            您的浏览器不支持视频播放
-          </video>
-          <div v-else class="preview-placeholder">
-            <p>选择视频文件后，将在此处显示预览</p>
+              <!-- 视频描述 -->
+              <a-form-item label="视频描述" name="description" class="form-item">
+                <a-textarea
+                  v-model:value="formState.description"
+                  placeholder="描述您的视频内容、创作背景或想要分享的故事..."
+                  :rows="4"
+                  :maxlength="200"
+                  show-count
+                  class="modern-textarea"
+                />
+                <div class="field-tip">详细的描述有助于观众更好地理解您的作品</div>
+              </a-form-item>
+            </a-form>
           </div>
         </div>
-      </a-card>
+
+        <!-- 右侧预览区域 -->
+        <div class="preview-section">
+          <div class="preview-card">
+            <h2 class="card-title">视频预览</h2>
+            <div class="preview-container">
+              <div v-if="videoPreviewUrl" class="video-preview-wrapper">
+                <video 
+                  :src="videoPreviewUrl" 
+                  controls 
+                  class="video-preview"
+                  preload="metadata"
+                >
+                  您的浏览器不支持视频播放
+                </video>
+                <div class="preview-info">
+                  <div class="preview-meta">
+                    <span class="meta-item">
+                      <ClockCircleOutlined />
+                      时长: {{ videoDuration || '计算中...' }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="preview-placeholder">
+                <div class="placeholder-content">
+                  <PlayCircleOutlined class="placeholder-icon" />
+                  <h3>视频预览</h3>
+                  <p>选择视频文件后，将在此处显示预览</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 上传提示 -->
+          <div class="tips-card">
+            <h3 class="tips-title">上传建议</h3>
+            <div class="tips-list">
+              <div class="tip-item">
+                <div class="tip-icon">📹</div>
+                <div class="tip-text">
+                  <strong>视频质量</strong>
+                  <p>建议使用 1080p 或更高分辨率</p>
+                </div>
+              </div>
+              <div class="tip-item">
+                <div class="tip-icon">🎵</div>
+                <div class="tip-text">
+                  <strong>音频清晰</strong>
+                  <p>确保音频质量清晰，无杂音</p>
+                </div>
+              </div>
+              <div class="tip-item">
+                <div class="tip-icon">⏱️</div>
+                <div class="tip-text">
+                  <strong>时长适中</strong>
+                  <p>建议视频时长在 30秒-10分钟</p>
+                </div>
+              </div>
+              <div class="tip-item">
+                <div class="tip-icon">🏷️</div>
+                <div class="tip-text">
+                  <strong>标题描述</strong>
+                  <p>使用准确的标题和详细描述</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -118,7 +204,9 @@ import { api } from '../auth';
 import { message, type FormInstance, type UploadFile } from 'ant-design-vue';
 import { 
   UploadOutlined, 
-  PlayCircleOutlined 
+  PlayCircleOutlined,
+  ArrowLeftOutlined,
+  ClockCircleOutlined
 } from '@ant-design/icons-vue';
 
 const router = useRouter();
@@ -137,8 +225,9 @@ const uploading = ref(false);
 const uploadProgress = ref(0);
 const loading = ref(false);
 
-// 视频预览URL
+// 视频预览URL和时长
 const videoPreviewUrl = ref('');
+const videoDuration = ref('');
 
 // 表单验证规则
 const rules = {
@@ -187,6 +276,16 @@ const beforeUpload = (file: File): boolean => {
     URL.revokeObjectURL(videoPreviewUrl.value);
   }
   videoPreviewUrl.value = URL.createObjectURL(file);
+  
+  // 获取视频时长
+  const video = document.createElement('video');
+  video.src = videoPreviewUrl.value;
+  video.onloadedmetadata = () => {
+    const duration = video.duration;
+    const minutes = Math.floor(duration / 60);
+    const seconds = Math.floor(duration % 60);
+    videoDuration.value = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
 
   // 阻止自动上传，等待用户点击"发布视频"按钮
   return false;
@@ -317,129 +416,532 @@ const goBack = () => {
 </script>
 
 <style scoped>
-.video-upload-container {
+/* 全局样式 */
+.modern-video-upload {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #f8f9fa;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.page-header {
+/* 顶部导航 */
+.upload-header {
   background: white;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #e8e8e8;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.header-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.back-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #595959;
+  transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+  background: #f0f0f0;
+  color: #1890ff;
+}
+
+.header-title h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.header-title p {
+  margin: 4px 0 0 0;
+  font-size: 14px;
+  color: #8c8c8c;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.cancel-btn {
+  border-radius: 8px;
+  font-weight: 500;
+  min-width: 80px;
+}
+
+.publish-btn {
+  border-radius: 8px;
+  font-weight: 500;
+  min-width: 120px;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
+}
+
+/* 主要内容 */
+.upload-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px 24px;
 }
 
 .upload-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px;
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 32px;
+  align-items: start;
 }
 
-.upload-card, .preview-card {
-  margin-bottom: 24px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+/* 左侧上传区域 */
+.upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
+.upload-card,
+.form-card {
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.card-title {
+  margin: 0 0 24px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #262626;
+}
+
+/* 上传区域 */
 .upload-area {
-  border: 2px dashed #d9d9d9;
-  border-radius: 8px;
-  padding: 40px 20px;
+  position: relative;
+}
+
+.upload-zone {
+  border: 3px dashed #d9d9d9;
+  border-radius: 16px;
+  padding: 48px 32px;
   text-align: center;
-  transition: border-color 0.3s;
+  transition: all 0.3s ease;
   background: #fafafa;
+  cursor: pointer;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.upload-area:hover {
+.upload-zone:hover {
   border-color: #1890ff;
+  background: #f0f8ff;
 }
 
-.upload-placeholder.has-file {
+.upload-zone.has-file {
   border-color: #52c41a;
   background: #f6ffed;
 }
 
-.upload-icon, .file-icon {
-  margin-bottom: 16px;
+.upload-zone.uploading {
+  border-color: #1890ff;
+  background: #f0f8ff;
+  cursor: not-allowed;
 }
 
-.upload-text p {
-  margin: 4px 0;
-  color: #666;
-}
-
-.upload-hint {
-  font-size: 12px;
-  color: #999;
-}
-
-.file-info {
+.upload-empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 16px;
 }
 
-.file-details {
+.upload-icon {
+  font-size: 64px;
+  color: #1890ff;
+  margin-bottom: 8px;
+}
+
+.upload-empty h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.upload-hint {
+  margin: 0;
+  font-size: 14px;
+  color: #8c8c8c;
+}
+
+.upload-limit {
+  margin: 0;
+  font-size: 12px;
+  color: #bfbfbf;
+}
+
+.file-preview {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.file-icon {
+  font-size: 56px;
+  color: #52c41a;
+}
+
+.file-info {
   text-align: left;
 }
 
 .file-name {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.file-size {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #8c8c8c;
+}
+
+.file-status {
+  font-size: 14px;
+  color: #52c41a;
   font-weight: 500;
-  margin: 0;
-  color: #333;
 }
 
-.file-size, .upload-status {
-  margin: 2px 0;
-  font-size: 12px;
-  color: #666;
-}
-
-.upload-status.uploading {
+.file-status.uploading {
   color: #1890ff;
 }
 
+/* 上传进度 */
 .upload-progress {
-  margin-top: 16px;
-  text-align: center;
+  margin-top: 24px;
+  padding: 20px;
+  background: #f0f8ff;
+  border-radius: 12px;
 }
 
-.progress-text {
-  margin: 8px 0 0 0;
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.progress-label {
   font-size: 14px;
-  color: #666;
+  font-weight: 500;
+  color: #262626;
 }
 
-.preview-content {
-  text-align: center;
+.progress-percent {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1890ff;
 }
 
-.video-preview {
-  max-width: 100%;
-  max-height: 400px;
+/* 表单样式 */
+.video-form {
+  max-width: none;
+}
+
+.form-item {
+  margin-bottom: 32px;
+}
+
+.modern-input,
+.modern-textarea {
   border-radius: 8px;
+  border: 2px solid #f0f0f0;
+  transition: all 0.3s ease;
+}
+
+.modern-input:hover,
+.modern-textarea:hover {
+  border-color: #d9d9d9;
+}
+
+.modern-input:focus,
+.modern-textarea:focus {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+}
+
+.field-tip {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #8c8c8c;
+  line-height: 1.4;
+}
+
+/* 右侧预览区域 */
+.preview-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: sticky;
+  top: 120px;
+}
+
+.preview-card,
+.tips-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.preview-container {
+  border-radius: 12px;
+  overflow: hidden;
   background: #000;
 }
 
+.video-preview-wrapper {
+  position: relative;
+}
+
+.video-preview {
+  width: 100%;
+  height: auto;
+  max-height: 300px;
+  display: block;
+}
+
+.preview-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  padding: 16px;
+  color: white;
+}
+
+.preview-meta {
+  display: flex;
+  gap: 16px;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
 .preview-placeholder {
-  padding: 60px 20px;
-  color: #999;
+  aspect-ratio: 16/9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: #f5f5f5;
+}
+
+.placeholder-content {
+  text-align: center;
+  color: #8c8c8c;
+}
+
+.placeholder-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  color: #d9d9d9;
+}
+
+.placeholder-content h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.placeholder-content p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* 提示卡片 */
+.tips-title {
+  margin: 0 0 20px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.tips-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tip-item {
+  display: flex;
+  gap: 12px;
+}
+
+.tip-icon {
+  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f0f0;
   border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.tip-text strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 4px;
+}
+
+.tip-text p {
+  margin: 0;
+  font-size: 12px;
+  color: #8c8c8c;
+  line-height: 1.4;
+}
+
+/* 表单标签样式 */
+:deep(.ant-form-item-label > label) {
+  font-size: 15px;
+  font-weight: 600;
+  color: #262626;
+}
+
+/* 字符计数样式 */
+:deep(.ant-input-show-count-suffix) {
+  color: #bfbfbf;
+}
+
+:deep(.ant-input-textarea-show-count::after) {
+  color: #bfbfbf;
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
   .upload-content {
-    padding: 16px;
+    grid-template-columns: 1fr;
+    gap: 24px;
   }
   
-  .file-info {
+  .preview-section {
+    position: static;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-container {
+    padding: 0 16px;
+    height: 64px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  
+  .header-title h1 {
+    font-size: 20px;
+  }
+  
+  .header-title p {
+    display: none;
+  }
+  
+  .header-actions {
+    order: 3;
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .upload-container {
+    padding: 20px 16px;
+  }
+  
+  .upload-card,
+  .form-card,
+  .preview-card,
+  .tips-card {
+    padding: 20px;
+    border-radius: 12px;
+  }
+  
+  .upload-zone {
+    padding: 32px 20px;
+    min-height: 160px;
+  }
+  
+  .upload-icon {
+    font-size: 48px;
+  }
+  
+  .file-icon {
+    font-size: 40px;
+  }
+  
+  .file-preview {
     flex-direction: column;
     text-align: center;
+    gap: 12px;
   }
   
-  .video-preview {
-    max-height: 300px;
+  .preview-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-container {
+    height: auto;
+    min-height: 64px;
+    padding: 12px 16px;
+  }
+  
+  .header-left {
+    gap: 12px;
+  }
+  
+  .upload-empty h3 {
+    font-size: 16px;
+  }
+  
+  .upload-hint,
+  .upload-limit {
+    font-size: 12px;
+  }
+  
+  .card-title {
+    font-size: 18px;
   }
 }
 </style>
